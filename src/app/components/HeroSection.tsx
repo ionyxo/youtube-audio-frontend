@@ -10,6 +10,7 @@ interface HeroSectionProps {
 
   onOpenAuth: () => void;
   authLabel: string; // "Log in" или "email (plan)"
+  isAuthed: boolean;
   onLogout: () => void;
 }
 
@@ -20,32 +21,39 @@ export function HeroSection({
   isProcessing,
   onOpenAuth,
   authLabel,
+  isAuthed,
   onLogout,
 }: HeroSectionProps) {
-  const isLoggedIn = authLabel !== "Log in";
-
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
       {/* Top Right Controls */}
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-        {/* Auth button */}
-        <button
-          onClick={isLoggedIn ? onLogout : onOpenAuth}
-          className="group px-4 py-2 rounded-xl border border-border bg-background/40 text-white hover:bg-white/10 transition flex items-center gap-2"
-          title={isLoggedIn ? "Log out" : "Log in"}
-        >
-          {isLoggedIn ? (
-            <>
+        {/* Auth */}
+        {!isAuthed ? (
+          <button
+            onClick={onOpenAuth}
+            className="group px-4 py-2 rounded-xl border border-border bg-background/40 text-white hover:bg-white/10 transition flex items-center gap-2"
+            title="Log in"
+          >
+            <User className="w-4 h-4 opacity-80 group-hover:opacity-100" />
+            <span>{authLabel}</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex px-4 py-2 rounded-xl border border-border bg-background/30 text-white/90">
+              {authLabel}
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="group px-4 py-2 rounded-xl border border-border bg-background/40 text-white hover:bg-white/10 transition flex items-center gap-2"
+              title="Log out"
+            >
               <LogOut className="w-4 h-4 opacity-80 group-hover:opacity-100" />
               <span className="hidden sm:inline">Log out</span>
-            </>
-          ) : (
-            <>
-              <User className="w-4 h-4 opacity-80 group-hover:opacity-100" />
-              <span>{authLabel}</span>
-            </>
-          )}
-        </button>
+            </button>
+          </div>
+        )}
 
         {/* Instagram */}
         <a
@@ -69,12 +77,22 @@ export function HeroSection({
         <motion.div
           className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-3xl"
           animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1,
+          }}
         />
         <motion.div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/10 rounded-full blur-3xl"
           animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2,
+          }}
         />
       </div>
 
