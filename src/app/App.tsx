@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HeroSection } from "@/app/components/HeroSection";
 import { ProcessingSection } from "@/app/components/ProcessingSection";
 import { HowItWorks } from "@/app/components/HowItWorks";
@@ -31,6 +31,12 @@ type AuthState = {
 };
 
 export default function App() {
+  // ✅ backend base url (prod via Vercel env, local fallback)
+  const API = useMemo(() => {
+    const v = import.meta.env.VITE_API_BASE_URL;
+    return (v && String(v).trim()) || "http://127.0.0.1:8000";
+  }, []);
+
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -40,7 +46,7 @@ export default function App() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
 
-  // красивое сообщение про лимит
+  // красивый баннер про лимит
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
   // restore auth from localStorage
@@ -52,6 +58,15 @@ export default function App() {
       setAuth({ token, email, plan });
     }
   }, []);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("email");
+    localStorage.removeItem("plan");
+    setAuth(null);
+    setAudioData(null);
+    setLimitMessage(null);
+  };
 
   const handleAnalyze = async () => {
     if (!youtubeUrl) return;
@@ -68,7 +83,7 @@ export default function App() {
     setIsProcessing(true);
 
     try {
-      const res = await fetch("youtube-audio-backend-production.up.railway.app", {
+      const res = await fetch(`${API}/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,15 +98,12 @@ export default function App() {
       if (!res.ok) {
         // 401 — токен устарел / невалидный
         if (res.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("email");
-          localStorage.removeItem("plan");
-          setAuth(null);
+          logout();
           setAuthOpen(true);
           return;
         }
 
-        // 403 — лимит free → показываем красивый баннер
+        // 403 — лимит free
         if (res.status === 403) {
           setLimitMessage(
             data?.detail ?? "Daily free limit reached. Upgrade to PRO."
@@ -99,7 +111,6 @@ export default function App() {
           return;
         }
 
-        // остальные ошибки
         alert(data?.detail ?? "Server error");
         return;
       }
@@ -114,6 +125,7 @@ export default function App() {
 
       setAudioData(nextAudioData);
 
+      // history
       setHistory((prev) => {
         const item: HistoryItem = {
           title: data.title ?? "YouTube audio",
@@ -138,21 +150,17 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background dark">
       <HeroSection
-  youtubeUrl={youtubeUrl}
-  setYoutubeUrl={setYoutubeUrl}
-  onAnalyze={handleAnalyze}
-  isProcessing={isProcessing}
-  onOpenAuth={() => setAuthOpen(true)}
-  authLabel={authLabel}
-  onLogout={() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("email");
-    localStorage.removeItem("plan");
-    setAuth(null);
-  }}
-/>
+        youtubeUrl={youtubeUrl}
+        setYoutubeUrl={setYoutubeUrl}
+        onAnalyze={handleAnalyze}
+        isProcessing={isProcessing}
+        onOpenAuth={() => setAuthOpen(true)}
+        authLabel={authLabel}
+        isAuthed={!!auth}
+        onLogout={logout}
+      />
 
-      {/* Красивый баннер лимита */}
+      {/* ✅ Баннер лимита */}
       {limitMessage && (
         <div className="px-4 -mt-10 pb-8">
           <div className="max-w-5xl mx-auto">
@@ -165,48 +173,12 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3">
-              <button
-  onClick={async () => {
-    if (!auth?.token) {
-      setAuthOpen(true);
-      return;
-    }
-
-    try {
-      const res = await fetch("http://127.0.0.1:8000/payments/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${auth.token}`,
-        },
-        body: JSON.stringify({ plan: "pro" }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data?.detail ?? "Payment error");
-        return;
-      }
-
-      if (data.already_pro) {
-        alert("You are already PRO.");
-        return;
-      }
-
-      if (data.invoice_url) {
-        window.open(data.invoice_url, "_blank");
-      } else {
-        alert("No invoice URL returned.");
-      }
-    } catch (e) {
-      alert("Payment server not reachable.");
-    }
-  }}
-  className="px-5 py-3 rounded-xl bg-primary text-black font-semibold hover:opacity-90 transition"
->
-  Upgrade to PRO
-</button>
+                <button
+                  onClick={() => alert("PRO payments: coming next 🙂")}
+                  className="px-5 py-3 rounded-xl bg-primary text-black font-semibold hover:opacity-90 transition"
+                >
+                  Upgrade to PRO
+                </button>
 
                 <button
                   onClick={() => setLimitMessage(null)}
@@ -224,6 +196,7 @@ export default function App() {
         <ProcessingSection isProcessing={isProcessing} audioData={audioData} />
       )}
 
+      {/* ✅ History */}
       {history.length > 0 && (
         <section className="pb-16 px-4">
           <div className="max-w-5xl mx-auto">
@@ -235,13 +208,13 @@ export default function App() {
               {history.map((item, i) => (
                 <div
                   key={i}
-                  className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border p-4 flex items-center justify-between"
+                  className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border p-4 flex items-center justify-between gap-4"
                 >
-                  <div className="text-white">
+                  <div className="text-white min-w-0">
                     <div className="text-xs text-muted-foreground mb-1">
                       {item.at}
                     </div>
-                    <div className="font-medium">{item.title}</div>
+                    <div className="font-medium truncate">{item.title}</div>
                     <div className="text-sm text-muted-foreground">
                       {item.bpm} BPM · {item.key} · {item.duration} ·{" "}
                       {item.sampleRate}
@@ -249,7 +222,7 @@ export default function App() {
                   </div>
 
                   <button
-                    className="px-4 py-2 rounded-xl bg-primary text-black font-semibold hover:opacity-90 transition"
+                    className="shrink-0 px-4 py-2 rounded-xl bg-primary text-black font-semibold hover:opacity-90 transition"
                     onClick={() => {
                       if (!item.downloadUrl) {
                         alert("No download link for this item.");
@@ -279,6 +252,7 @@ export default function App() {
           localStorage.setItem("email", email);
           localStorage.setItem("plan", plan);
           setAuth({ token, email, plan });
+          setAuthOpen(false);
         }}
       />
     </div>
