@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 
 type Props = {
@@ -13,16 +13,21 @@ export function AuthModal({ open, onClose, onAuthed }: Props) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ backend base url (prod via Vercel env, local fallback)
+  const API = useMemo(() => {
+    const v = import.meta.env.VITE_API_BASE_URL;
+    return (v && String(v).trim()) || "http://127.0.0.1:8000";
+  }, []);
+
   if (!open) return null;
 
   const submit = async () => {
     if (!email || !password) return alert("Enter email and password");
+
     setLoading(true);
     try {
       const endpoint =
-        mode === "login"
-          ? "http://127.0.0.1:8000/auth/login"
-          : "http://127.0.0.1:8000/auth/register";
+        mode === "login" ? `${API}/auth/login` : `${API}/auth/register`;
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -30,16 +35,18 @@ export function AuthModal({ open, onClose, onAuthed }: Props) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        alert(data?.detail ?? "Auth error");
+        alert(data?.detail ?? `Auth error (${res.status})`);
         return;
       }
 
       onAuthed({ token: data.token, email: data.email, plan: data.plan });
       onClose();
-    } catch (e) {
-      alert("Backend not running?");
+    } catch (e: any) {
+      alert("Network error. Check backend URL / CORS.");
+      console.log("AUTH FETCH ERROR:", e);
     } finally {
       setLoading(false);
     }
