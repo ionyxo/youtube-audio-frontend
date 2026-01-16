@@ -36,9 +36,7 @@ export default function App() {
     const v = import.meta.env.VITE_API_BASE_URL;
     return (v && String(v).trim()) || "http://127.0.0.1:8000";
   }, []);
-useEffect(() => {
-  alert("API BASE URL = " + API);
-}, [API]);
+
 
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
