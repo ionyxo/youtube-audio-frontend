@@ -225,6 +225,7 @@ export default function App() {
         authLabel={authLabel}
         isAuthed={!!auth}
         onLogout={logout}
+        onUpload={handleUpload}
       />
 
       {/* ✅ Баннер лимита */}
