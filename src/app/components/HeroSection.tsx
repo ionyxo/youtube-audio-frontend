@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Play, Sparkles, LogOut, User } from "lucide-react";
+import { Play, Sparkles, LogOut, User, Upload } from "lucide-react";
 import { FaInstagram } from "react-icons/fa";
 
 interface HeroSectionProps {
@@ -12,6 +12,8 @@ interface HeroSectionProps {
   authLabel: string; // "Log in" или "email (plan)"
   isAuthed: boolean;
   onLogout: () => void;
+
+  onUpload: (file: File) => void; // ✅ NEW
 }
 
 export function HeroSection({
@@ -23,6 +25,7 @@ export function HeroSection({
   authLabel,
   isAuthed,
   onLogout,
+  onUpload,
 }: HeroSectionProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
@@ -130,7 +133,7 @@ export function HeroSection({
           className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto"
         >
           Convert any YouTube track to high-quality WAV and get instant musical
-          analysis.
+          analysis — or upload your own audio file.
         </motion.p>
 
         <motion.div
@@ -149,6 +152,7 @@ export function HeroSection({
               className="flex-1 px-6 py-4 bg-background/80 rounded-xl border border-border focus:border-primary/50 outline-none"
             />
 
+            {/* Analyze */}
             <button
               onClick={onAnalyze}
               disabled={!youtubeUrl || isProcessing}
@@ -159,10 +163,34 @@ export function HeroSection({
               ) : (
                 <span className="flex items-center gap-2 justify-center">
                   <Play className="w-5 h-5" fill="currentColor" />
-                  Analyze & Convert
+                  Analyze
                 </span>
               )}
             </button>
+
+            {/* ✅ Upload (hidden input + label button) */}
+            <input
+              type="file"
+              accept=".wav,.mp3,.m4a"
+              id="upload-audio"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onUpload(f);
+                e.currentTarget.value = ""; // allow same file again
+              }}
+            />
+
+            <label
+              htmlFor="upload-audio"
+              className={`px-8 py-4 rounded-xl font-semibold border border-border text-white hover:bg-white/10 transition cursor-pointer flex items-center gap-2 justify-center ${
+                isProcessing ? "opacity-50 pointer-events-none" : ""
+              }`}
+              title="Upload .wav, .mp3, .m4a"
+            >
+              <Upload className="w-5 h-5" />
+              Upload
+            </label>
           </div>
         </motion.div>
       </div>
