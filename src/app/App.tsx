@@ -37,7 +37,6 @@ export default function App() {
     return (v && String(v).trim()) || "http://127.0.0.1:8000";
   }, []);
 
-
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -69,13 +68,79 @@ export default function App() {
     setLimitMessage(null);
   };
 
+  // ✅ UPLOAD (вынесено отдельно)
+  const handleUpload = async (file: File) => {
+    setLimitMessage(null);
+
+    if (!auth?.token) {
+      setAuthOpen(true);
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await fetch(`${API}/analyze-upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: form,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          logout();
+          setAuthOpen(true);
+          return;
+        }
+        if (res.status === 403) {
+          setLimitMessage(data?.detail ?? "Daily limit reached. Upgrade to PRO.");
+          return;
+        }
+        alert(data?.detail ?? "Upload analyze error");
+        return;
+      }
+
+      const nextAudioData: AudioData = {
+        bpm: data.bpm,
+        key: data.key,
+        duration: data.duration ?? "—",
+        sampleRate: data.sampleRate ?? "—",
+        downloadUrl: data.download_url,
+      };
+
+      setAudioData(nextAudioData);
+
+      setHistory((prev) => {
+        const item: HistoryItem = {
+          title: data.title ?? file.name,
+          bpm: data.bpm,
+          key: data.key,
+          duration: data.duration ?? "—",
+          sampleRate: data.sampleRate ?? "—",
+          downloadUrl: data.download_url ?? "",
+          at: new Date().toLocaleString(),
+        };
+        return [item, ...prev].slice(0, 10);
+      });
+    } catch (e) {
+      alert("Network error. Check backend URL / CORS.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ✅ YOUTUBE ANALYZE
   const handleAnalyze = async () => {
     if (!youtubeUrl) return;
 
-    // очищаем прошлые баннеры перед новой попыткой
     setLimitMessage(null);
 
-    // если не залогинен — открываем логин
     if (!auth?.token) {
       setAuthOpen(true);
       return;
@@ -92,85 +157,16 @@ export default function App() {
         },
         body: JSON.stringify({ url: youtubeUrl }),
       });
-      const handleUpload = async (file: File) => {
-  setLimitMessage(null);
-
-  if (!auth?.token) {
-    setAuthOpen(true);
-    return;
-  }
-
-  setIsProcessing(true);
-  try {
-    const form = new FormData();
-    form.append("file", file);
-
-    const res = await fetch(`${API}/analyze-upload`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-      },
-      body: form,
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      if (res.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("email");
-        localStorage.removeItem("plan");
-        setAuth(null);
-        setAuthOpen(true);
-        return;
-      }
-      if (res.status === 403) {
-        setLimitMessage(data?.detail ?? "Daily limit reached. Upgrade to PRO.");
-        return;
-      }
-      alert(data?.detail ?? "Upload analyze error");
-      return;
-    }
-
-    setAudioData({
-      bpm: data.bpm,
-      key: data.key,
-      duration: data.duration ?? "—",
-      sampleRate: data.sampleRate ?? "—",
-      downloadUrl: data.download_url,
-    } as any);
-
-    setHistory((prev) => {
-      const item: HistoryItem = {
-        title: data.title ?? file.name,
-        bpm: data.bpm,
-        key: data.key,
-        duration: data.duration ?? "—",
-        sampleRate: data.sampleRate ?? "—",
-        downloadUrl: data.download_url ?? "",
-        at: new Date().toLocaleString(),
-      };
-      return [item, ...prev].slice(0, 10);
-    });
-  } catch (e) {
-    alert("Network error. Check backend URL / CORS.");
-  } finally {
-    setIsProcessing(false);
-  }
-};
 
       const data = await res.json();
-      console.log("DATA FROM API:", data);
 
       if (!res.ok) {
-        // 401 — токен устарел / невалидный
         if (res.status === 401) {
           logout();
           setAuthOpen(true);
           return;
         }
 
-        // 403 — лимит free
         if (res.status === 403) {
           setLimitMessage(
             data?.detail ?? "Daily free limit reached. Upgrade to PRO."
@@ -192,7 +188,6 @@ export default function App() {
 
       setAudioData(nextAudioData);
 
-      // history
       setHistory((prev) => {
         const item: HistoryItem = {
           title: data.title ?? "YouTube audio",
@@ -206,7 +201,7 @@ export default function App() {
         return [item, ...prev].slice(0, 10);
       });
     } catch (error) {
-      alert("Error analyzing video. Check backend is running.");
+      alert("Network error. Check backend URL / CORS.");
     } finally {
       setIsProcessing(false);
     }
@@ -223,7 +218,7 @@ export default function App() {
         isProcessing={isProcessing}
         onOpenAuth={() => setAuthOpen(true)}
         authLabel={authLabel}
-        isAuthed={!!auth}
+        isAuthed={!!auth?.token}
         onLogout={logout}
         onUpload={handleUpload}
       />
